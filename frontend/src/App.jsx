@@ -2,7 +2,18 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import Sidebar from './components/sidebar';
 import Header from './components/header';
-import Login from './pages/login'; // <-- นำเข้าหน้า Login
+import Login from './pages/login';
+import Homepage from './pages/Homepage';
+import PermanentEmployee from './pages/PermanentEmployee';
+import Freelance from './pages/Freelance';
+import Attendance from './pages/Attendance';
+import Leaves from './pages/Leaves';
+import PayrollCalculate from './pages/PayrollCalculate';
+import PayrollTax from './pages/PayrollTax';
+import PayrollSocialSecurity from './pages/PayrollSocialSecurity';
+import PayrollDeductions from './pages/PayrollDeductions';
+import Reports from './pages/Reports';
+import Settings from './pages/Settings';
 
 // หน้าตัวอย่างจำลอง
 function DashboardHome() {
@@ -41,24 +52,26 @@ function MainLayout() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        
+      <Routes>                                                
         {/* หน้า Login แยกเดี่ยว (พื้นหลังขาวล้วน ไม่มีแถบ Sidebar/Header) */}
         <Route path="/login" element={<Login />} />
 
         {/* หน้าหลักภายในระบบ */}
         <Route path="/" element={<MainLayout />}>
-          <Route index element={<DashboardHome />} />
-          <Route path="employees/permanent" element={<PagePlaceholder title="ข้อมูลพนักงาน - พนักงานประจำ" />} />
-          <Route path="employees/freelance" element={<PagePlaceholder title="ข้อมูลพนักงาน - Freelance" />} />
-          <Route path="attendance" element={<PagePlaceholder title="บันทึกการเข้างาน" />} />
-          <Route path="leaves" element={<PagePlaceholder title="การลา" />} />
-          <Route path="payroll/calculate" element={<PagePlaceholder title="คำนวณเงินเดือน" />} />
-          <Route path="payroll/tax" element={<PagePlaceholder title="ภาษี" />} />
-          <Route path="payroll/social-security" element={<PagePlaceholder title="ประกันสังคม" />} />
-          <Route path="payroll/deductions" element={<PagePlaceholder title="รายการหักอื่น ๆ" />} />
-          <Route path="reports" element={<PagePlaceholder title="รายงาน" />} />
-          <Route path="settings" element={<PagePlaceholder title="การตั้งค่า" />} />
+          <Route index element={<Homepage />} />
+          <Route path="employees/permanent" element={<PermanentEmployee />} />
+          <Route path="employees/freelance" element={<Freelance />} />
+          
+          {/* หน้าบันทึกการเข้าทำงาน (เรียกใช้งานผ่าน path: /attendance-record) */}
+          <Route path="/attendance" element={<Attendance />} />
+          
+          <Route path="leaves" element={<Leaves />} />
+          <Route path="payroll/calculate" element={<PayrollCalculate />} />
+          <Route path="payroll/tax" element={<PayrollTax />} />
+          <Route path="payroll/social-security" element={<PayrollSocialSecurity />} />
+          <Route path="payroll/deductions" element={<PayrollDeductions />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="settings" element={<Settings />} />  
         </Route>
       </Routes>
     </BrowserRouter>
