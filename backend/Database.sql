@@ -1,33 +1,33 @@
 -- 1. สร้างตารางข้อมูลพนักงาน (Employees)
-CREATE TABLE employees (
+CREATE TABLE IF NOT EXISTS employees (
     id SERIAL PRIMARY KEY,
-    employee_code VARCHAR(20) UNIQUE NOT NULL,      -- รหัสพนักงาน
-    prefix VARCHAR(20) DEFAULT 'นาย',               -- คำนำหน้า
-    first_name VARCHAR(100) NOT NULL,               -- ชื่อ
-    last_name VARCHAR(100) NOT NULL,                -- นามสกุล
-    department VARCHAR(100) NOT NULL,               -- แผนก
-    position VARCHAR(100) NOT NULL,                 -- ตำแหน่ง
-    employment_type VARCHAR(50) NOT NULL,           -- 'ประจำ' หรือ 'ฟรีแลนซ์'
-    base_salary DECIMAL(10, 2) NOT NULL,            -- ฐานเงินเดือน
-    hourly_ot_rate DECIMAL(10, 2) DEFAULT 0.00,     -- อัตราค่า OT สแตนดาร์ด
-    bank_name VARCHAR(100) DEFAULT 'กสิกรไทย',        -- ชื่อธนาคาร
-    bank_account_no VARCHAR(50) NOT NULL,           -- เลขที่บัญชี
-    status VARCHAR(20) DEFAULT 'ACTIVE',            -- 'ACTIVE' หรือ 'INACTIVE'
+    employee_code VARCHAR(20) UNIQUE NOT NULL,
+    prefix VARCHAR(20) DEFAULT 'นาย',
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    department VARCHAR(100) NOT NULL,
+    position VARCHAR(100) NOT NULL,
+    employment_type VARCHAR(50) NOT NULL,
+    base_salary DECIMAL(10, 2) NOT NULL,
+    hourly_ot_rate DECIMAL(10, 2) DEFAULT 0.00,
+    bank_name VARCHAR(100) DEFAULT 'กสิกรไทย',
+    bank_account_no VARCHAR(50) NOT NULL,
+    status VARCHAR(20) DEFAULT 'ACTIVE',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 2. สร้างตารางคำนวณเงินเดือนประจำเดือน (Payroll Items)
-CREATE TABLE payroll_items (
+CREATE TABLE IF NOT EXISTS payroll_items (
     id SERIAL PRIMARY KEY,
     employee_code VARCHAR(20) REFERENCES employees(employee_code),
-    period VARCHAR(20) NOT NULL,                    -- งวดเดือน เช่น '2026-09'
-    ot_hours DECIMAL(5, 2) DEFAULT 0.00,            -- ชั่วโมง OT
-    ot_amount DECIMAL(10, 2) DEFAULT 0.00,          -- รวมค่า OT
-    other_income DECIMAL(10, 2) DEFAULT 0.00,       -- รายได้อื่นๆ / เบี้ยเลี้ยง / คอมมิชชัน
-    late_absence_deduction DECIMAL(10, 2) DEFAULT 0.00, -- หัก ขาด/สาย
-    tax_amount DECIMAL(10, 2) DEFAULT 0.00,         -- ภาษีหัก ณ ที่จ่าย
-    social_security DECIMAL(10, 2) DEFAULT 0.00,   -- ประกันสังคม
-    other_deduction DECIMAL(10, 2) DEFAULT 0.00,    -- รายการหักอื่นๆ
+    period VARCHAR(20) NOT NULL,
+    ot_hours DECIMAL(5, 2) DEFAULT 0.00,
+    ot_amount DECIMAL(10, 2) DEFAULT 0.00,
+    other_income DECIMAL(10, 2) DEFAULT 0.00,
+    late_absence_deduction DECIMAL(10, 2) DEFAULT 0.00,
+    tax_amount DECIMAL(10, 2) DEFAULT 0.00,
+    social_security DECIMAL(10, 2) DEFAULT 0.00,
+    other_deduction DECIMAL(10, 2) DEFAULT 0.00,
     status VARCHAR(20) DEFAULT 'CALCULATED',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
