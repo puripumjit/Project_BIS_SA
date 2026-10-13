@@ -6,120 +6,162 @@ DROP TABLE IF EXISTS attendance;
 DROP TABLE IF EXISTS leaves;
 DROP TABLE IF EXISTS payroll_deductions;
 
--- 2. สร้างตารางข้อมูลพนักงาน (Employees)
+-- 1. พนักงาน
 CREATE TABLE employees (
     id SERIAL PRIMARY KEY,
-    employee_code VARCHAR(20) UNIQUE NOT NULL,      -- รหัสพนักงาน
-    prefix VARCHAR(20) DEFAULT 'นาย',               -- คำนำหน้า
-    first_name VARCHAR(100) NOT NULL,               -- ชื่อ
-    last_name VARCHAR(100) NOT NULL,                -- นามสกุล
-    department VARCHAR(100) NOT NULL,               -- แผนก
-    position VARCHAR(100) NOT NULL,                 -- ตำแหน่ง
-    employment_type VARCHAR(50) NOT NULL,           -- 'ประจำ' หรือ 'ฟรีแลนซ์'
-    base_salary DECIMAL(10, 2) DEFAULT 0.00,        -- ฐานเงินเดือน (สำหรับพนักงานประจำ)
-    hourly_ot_rate DECIMAL(10, 2) DEFAULT 0.00,     -- อัตรา OT ต่อชั่วโมง
-    bank_name VARCHAR(100) DEFAULT 'กสิกรไทย',        -- ชื่อธนาคาร
-    bank_account_no VARCHAR(50) NOT NULL,           -- เลขที่บัญชี
-    status VARCHAR(20) DEFAULT 'ACTIVE',            -- 'ACTIVE' หรือ 'INACTIVE'
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    employee_code VARCHAR(20) UNIQUE NOT NULL,
+    prefix VARCHAR(20) DEFAULT 'นาย',
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    department VARCHAR(100) NOT NULL,
+    position VARCHAR(100) NOT NULL,
+    employment_type VARCHAR(50) NOT NULL,
+    base_salary NUMERIC(12, 2) NOT NULL CHECK (base_salary >= 0),
+    hourly_ot_rate NUMERIC(10, 2) NOT NULL DEFAULT 0
+        CHECK (hourly_ot_rate >= 0),
+    bank_name VARCHAR(100) DEFAULT 'กสิกรไทย',
+    bank_account_no VARCHAR(50) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'
+        CHECK (status IN ('ACTIVE', 'INACTIVE')),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3. สร้างตารางคำนวณเงินเดือนประจำเดือน (Payroll Items)
+-- 2. ผู้ใช้งานระบบ
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    full_name VARCHAR(200) NOT NULL,
+    role VARCHAR(20) NOT NULL
+        CHECK (role IN ('ADMIN', 'HR')),
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'
+        CHECK (status IN ('ACTIVE', 'INACTIVE')),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. เวลาเข้างานและ OT รายวัน
+CREATE TABLE attendance (
+    id SERIAL PRIMARY KEY,
+    employee_id INTEGER NOT NULL
+        REFERENCES employees(id) ON DELETE CASCADE,
+    work_date DATE NOT NULL,
+    check_in TIME,
+    check_out TIME,
+    work_hours NUMERIC(6, 2) NOT NULL DEFAULT 0
+        CHECK (work_hours >= 0),
+    ot_hours NUMERIC(6, 2) NOT NULL DEFAULT 0
+        CHECK (ot_hours >= 0),
+    status VARCHAR(20) NOT NULL DEFAULT 'NORMAL'
+        CHECK (status IN ('NORMAL', 'LATE', 'LEAVE', 'ABSENT')),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (employee_id, work_date),
+    CHECK (
+        check_in IS NULL OR check_out IS NULL OR check_out > check_in
+    )
+);
+
+-- 4. การลา
+CREATE TABLE leaves (
+    id SERIAL PRIMARY KEY,
+    employee_id INTEGER NOT NULL
+        REFERENCES employees(id) ON DELETE CASCADE,
+    leave_type VARCHAR(20) NOT NULL
+        CHECK (leave_type IN ('SICK', 'PERSONAL', 'VACATION', 'OTHER')),
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    days NUMERIC(6, 2) NOT NULL CHECK (days > 0),
+    reason TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+        CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    approved_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    approved_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (end_date >= start_date),
+    CHECK (
+        status = 'APPROVED'
+        OR (approved_by IS NULL AND approved_at IS NULL)
+    )
+);
+
+-- 5. รายการเงินเดือนต่อพนักงานต่องวด
 CREATE TABLE payroll_items (
     id SERIAL PRIMARY KEY,
-    employee_code VARCHAR(20) REFERENCES employees(employee_code),
-    period VARCHAR(20) NOT NULL,                    -- งวดเดือน เช่น '2026-09'
-    
-    -- สำหรับพนักงานประจำ (OT)
-    ot_hours DECIMAL(5, 2) DEFAULT 0.00,            -- ชั่วโมง OT
-    ot_amount DECIMAL(10, 2) DEFAULT 0.00,          -- รวมเงิน OT
-    
-    -- สำหรับฟรีแลนซ์ (คำนวณตามชิ้นงาน)
-    small_panel_qty INT DEFAULT 0,                  -- จำนวนตู้เล็ก (ตู้ละ 800)
-    small_panel_rate DECIMAL(10, 2) DEFAULT 800.00,
-    large_panel_qty INT DEFAULT 0,                  -- จำนวนตู้ใหญ่ (ตู้ละ 1,000)
-    large_panel_rate DECIMAL(10, 2) DEFAULT 1000.00,
+    employee_id INTEGER NOT NULL
+        REFERENCES employees(id) ON DELETE RESTRICT,
+    period VARCHAR(7) NOT NULL
+        CHECK (period ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
 
-    -- รายการอื่นๆ และรายการหัก
-    other_income DECIMAL(10, 2) DEFAULT 0.00,       -- รายได้อื่นๆ / เบี้ยเลี้ยง
-    late_absence_deduction DECIMAL(10, 2) DEFAULT 0.00, -- หัก ขาด/สาย
-    tax_amount DECIMAL(10, 2) DEFAULT 0.00,         -- ภาษีหัก ณ ที่จ่าย
-    social_security DECIMAL(10, 2) DEFAULT 0.00,   -- ประกันสังคม
-    other_deduction DECIMAL(10, 2) DEFAULT 0.00,    -- รายการหักอื่นๆ
-    status VARCHAR(20) DEFAULT 'CALCULATED',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    -- รายได้และ OT
+    ot_hours NUMERIC(8, 2) NOT NULL DEFAULT 0
+        CHECK (ot_hours >= 0),
+    ot_amount NUMERIC(12, 2) NOT NULL DEFAULT 0
+        CHECK (ot_amount >= 0),
+    small_panel_qty INTEGER NOT NULL DEFAULT 0
+        CHECK (small_panel_qty >= 0),
+    small_panel_rate NUMERIC(12, 2) NOT NULL DEFAULT 0
+        CHECK (small_panel_rate >= 0),
+    large_panel_qty INTEGER NOT NULL DEFAULT 0
+        CHECK (large_panel_qty >= 0),
+    large_panel_rate NUMERIC(12, 2) NOT NULL DEFAULT 0
+        CHECK (large_panel_rate >= 0),
+    other_income NUMERIC(12, 2) NOT NULL DEFAULT 0
+        CHECK (other_income >= 0),
+
+    -- รายการหักที่ระบุโดยตรงในเงินเดือน
+    late_absence_deduction NUMERIC(12, 2) NOT NULL DEFAULT 0
+        CHECK (late_absence_deduction >= 0),
+    tax_amount NUMERIC(12, 2) NOT NULL DEFAULT 0
+        CHECK (tax_amount >= 0),
+    social_security NUMERIC(12, 2) NOT NULL DEFAULT 0
+        CHECK (social_security >= 0),
+    other_deduction NUMERIC(12, 2) NOT NULL DEFAULT 0
+        CHECK (other_deduction >= 0),
+
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT'
+        CHECK (status IN ('DRAFT', 'APPROVED', 'PAID')),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- พนักงานหนึ่งคนมีรายการเงินเดือนได้หนึ่งรายการต่องวด
+    CONSTRAINT uq_payroll_employee_period
+        UNIQUE (employee_id, period)
 );
 
--- 1. ผู้ใช้ระบบ (หน้า login / HR Admin)
-CREATE TABLE users (
-    id            SERIAL PRIMARY KEY,
-    username      VARCHAR(50)  UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,              -- เก็บ bcrypt hash ห้ามเก็บรหัสผ่านจริง
-    full_name     VARCHAR(150) NOT NULL,
-    role          VARCHAR(20)  NOT NULL DEFAULT 'HR', -- ADMIN, HR
-    status        VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, INACTIVE
-    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_users_role   CHECK (role IN ('ADMIN', 'HR')),
-    CONSTRAINT chk_users_status CHECK (status IN ('ACTIVE', 'INACTIVE'))
-);
-
--- 2. บันทึกการเข้างานรายวัน
-CREATE TABLE attendance (
-    id          SERIAL PRIMARY KEY,
-    employee_id INT  NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
-    work_date   DATE NOT NULL,
-    check_in    TIME,                                  -- NULL ได้ (ลา/ขาด)
-    check_out   TIME,
-    work_hours  NUMERIC(4,2) NOT NULL DEFAULT 0,
-    ot_hours    NUMERIC(4,2) NOT NULL DEFAULT 0,
-    status      VARCHAR(20)  NOT NULL,                 -- NORMAL, LATE, LEAVE, ABSENT
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (employee_id, work_date),
-    CONSTRAINT chk_attendance_status CHECK (status IN ('NORMAL', 'LATE', 'LEAVE', 'ABSENT')),
-    CONSTRAINT chk_attendance_time   CHECK (check_out IS NULL OR check_in IS NULL OR check_out > check_in)
-);
-
-CREATE INDEX idx_attendance_date ON attendance(work_date);
-CREATE INDEX idx_attendance_status ON attendance(status);
-
--- 3. การลา
-CREATE TABLE leaves (
-    id          SERIAL PRIMARY KEY,
-    employee_id INT  NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
-    leave_type  VARCHAR(20) NOT NULL,                  -- SICK, PERSONAL, VACATION, OTHER
-    start_date  DATE NOT NULL,
-    end_date    DATE NOT NULL,
-    days        NUMERIC(4,1) NOT NULL,                 -- รองรับครึ่งวัน เช่น 0.5
-    reason      VARCHAR(255),
-    status      VARCHAR(20) NOT NULL DEFAULT 'PENDING',-- PENDING, APPROVED, REJECTED
-    approved_by INT REFERENCES users(id),
-    approved_at TIMESTAMP,
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_leaves_type   CHECK (leave_type IN ('SICK', 'PERSONAL', 'VACATION', 'OTHER')),
-    CONSTRAINT chk_leaves_status CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
-    CONSTRAINT chk_leaves_dates  CHECK (end_date >= start_date),
-    CONSTRAINT chk_leaves_days   CHECK (days > 0)
-);
-
-CREATE INDEX idx_leaves_employee ON leaves(employee_id);
-CREATE INDEX idx_leaves_start_date ON leaves(start_date);
-CREATE INDEX idx_leaves_status ON leaves(status);
-
--- 4. รายการหักอื่นๆ (เงินกู้, กองทุนสำรองเลี้ยงชีพ, ค่าชุด, ค่าเสียหาย ฯลฯ)
+-- 6. รายการหักเงินแยกตามงวดเงินเดือน
 CREATE TABLE payroll_deductions (
-    id             SERIAL PRIMARY KEY,
-    employee_id    INT  NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
-    period         VARCHAR(20) NOT NULL,               -- งวดเดือน เช่น '2026-09' (ตรงกับ payroll_items)
-    deduction_type VARCHAR(30) NOT NULL,               -- LOAN, PROVIDENT_FUND, UNIFORM, DAMAGE, OTHER
-    amount         NUMERIC(10,2) NOT NULL,
-    note           VARCHAR(255),
-    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_deduction_type   CHECK (deduction_type IN ('LOAN', 'PROVIDENT_FUND', 'UNIFORM', 'DAMAGE', 'OTHER')),
-    CONSTRAINT chk_deduction_amount CHECK (amount > 0)
+    id SERIAL PRIMARY KEY,
+    employee_id INTEGER NOT NULL,
+    period VARCHAR(7) NOT NULL
+        CHECK (period ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
+    deduction_type VARCHAR(30) NOT NULL
+        CHECK (
+            deduction_type IN (
+                'LOAN', 'PROVIDENT_FUND', 'UNIFORM', 'DAMAGE', 'OTHER'
+            )
+        ),
+    amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
+    note TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- ต้องมี payroll_items ของพนักงานและงวดเดียวกันก่อน
+    CONSTRAINT fk_deduction_payroll
+        FOREIGN KEY (employee_id, period)
+        REFERENCES payroll_items(employee_id, period)
+        ON DELETE CASCADE
 );
 
-CREATE INDEX idx_deductions_period ON payroll_deductions(period);
-CREATE INDEX idx_deductions_employee ON payroll_deductions(employee_id);
+-- Index ช่วยค้นข้อมูลตามพนักงานและงวด
+CREATE INDEX idx_attendance_employee_date
+    ON attendance(employee_id, work_date);
+
+CREATE INDEX idx_leaves_employee_dates
+    ON leaves(employee_id, start_date, end_date);
+
+CREATE INDEX idx_payroll_period
+    ON payroll_items(period);
+
+CREATE INDEX idx_deductions_employee_period
+    ON payroll_deductions(employee_id, period);
+
 
 -- 4. มอกอัพข้อมูลพนักงาน (ประจำ 15 คน + ฟรีแลนซ์ช่างประกอบตู้ไฟ 5 คน)
 INSERT INTO employees (employee_code, prefix, first_name, last_name, department, position, employment_type, base_salary, hourly_ot_rate, bank_name, bank_account_no) 
