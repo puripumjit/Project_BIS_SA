@@ -9,6 +9,8 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
+    proxy: { '/api': { target: 'http://localhost:8080', changeOrigin: true,
+                          rewrite: (p) => p.replace(/^\/api/, '') } },
     open: '/login', // สั่งให้ตอนรัน dev server เปิดหน้าต่างเบราว์เซอร์ไปที่ path /login ทันที
   },
 })

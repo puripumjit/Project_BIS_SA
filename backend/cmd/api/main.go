@@ -10,6 +10,10 @@ import (
 	_ "github.com/lib/pq"
 	"backend/internal/employee"
 	"backend/internal/payroll"
+	"backend/internal/user"
+	"backend/internal/attendance"
+	"backend/internal/leave"
+	"backend/internal/payroll_deduction"
 )
 
 func main() {
@@ -67,6 +71,10 @@ func main() {
 	// 3. สร้าง Handler ของแต่ละโมดูล
 	empHandler := employee.NewHandler(db)
 	payHandler := payroll.NewHandler(db)
+	userHandler := user.NewHandler(db)
+	attendanceHandler := attendance.NewHandler(db)
+	leaveHandler := leave.NewHandler(db)
+	deductionHandler := payroll_deduction.NewHandler(db)
 
 	// 4. สร้าง ServeMux และลงทะเบียน Routing
 	mux := http.NewServeMux()
@@ -84,6 +92,22 @@ func main() {
 
 	// Routes สำหรับ Payroll
 	mux.HandleFunc("POST /payroll", payHandler.CreatePayroll)
+
+	// Routes สำหรับ Users
+	mux.HandleFunc("POST /users", userHandler.CreateUser)
+	mux.HandleFunc("GET /users", userHandler.GetUsers)
+
+	// Routes สำหรับ Attendance
+	mux.HandleFunc("POST /attendance", attendanceHandler.CreateAttendance)
+	mux.HandleFunc("GET /attendance", attendanceHandler.GetAttendance)
+
+	// Routes สำหรับ Leaves
+	mux.HandleFunc("POST /leaves", leaveHandler.CreateLeave)
+	mux.HandleFunc("GET /leaves", leaveHandler.GetLeaves)
+
+	// Routes สำหรับ Payroll Deductions
+	mux.HandleFunc("POST /payroll-deductions", deductionHandler.CreateDeduction)
+	mux.HandleFunc("GET /payroll-deductions", deductionHandler.GetDeductions)
 
 	// 5. เริ่มต้น Server
 	addr := fmt.Sprintf(":%s", port)

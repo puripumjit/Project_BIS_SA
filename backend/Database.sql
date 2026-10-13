@@ -1,6 +1,10 @@
 -- 1. ลบตารางเก่าทิ้งก่อน (ถ้ามี)
 DROP TABLE IF EXISTS payroll_items;
 DROP TABLE IF EXISTS employees;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS attendance;
+DROP TABLE IF EXISTS leaves;
+DROP TABLE IF EXISTS payroll_deductions;
 
 -- 2. สร้างตารางข้อมูลพนักงาน (Employees)
 CREATE TABLE employees (
@@ -45,6 +49,77 @@ CREATE TABLE payroll_items (
     status VARCHAR(20) DEFAULT 'CALCULATED',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 1. ผู้ใช้ระบบ (หน้า login / HR Admin)
+CREATE TABLE users (
+    id            SERIAL PRIMARY KEY,
+    username      VARCHAR(50)  UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,              -- เก็บ bcrypt hash ห้ามเก็บรหัสผ่านจริง
+    full_name     VARCHAR(150) NOT NULL,
+    role          VARCHAR(20)  NOT NULL DEFAULT 'HR', -- ADMIN, HR
+    status        VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, INACTIVE
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_users_role   CHECK (role IN ('ADMIN', 'HR')),
+    CONSTRAINT chk_users_status CHECK (status IN ('ACTIVE', 'INACTIVE'))
+);
+
+-- 2. บันทึกการเข้างานรายวัน
+CREATE TABLE attendance (
+    id          SERIAL PRIMARY KEY,
+    employee_id INT  NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    work_date   DATE NOT NULL,
+    check_in    TIME,                                  -- NULL ได้ (ลา/ขาด)
+    check_out   TIME,
+    work_hours  NUMERIC(4,2) NOT NULL DEFAULT 0,
+    ot_hours    NUMERIC(4,2) NOT NULL DEFAULT 0,
+    status      VARCHAR(20)  NOT NULL,                 -- NORMAL, LATE, LEAVE, ABSENT
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (employee_id, work_date),
+    CONSTRAINT chk_attendance_status CHECK (status IN ('NORMAL', 'LATE', 'LEAVE', 'ABSENT')),
+    CONSTRAINT chk_attendance_time   CHECK (check_out IS NULL OR check_in IS NULL OR check_out > check_in)
+);
+
+CREATE INDEX idx_attendance_date ON attendance(work_date);
+CREATE INDEX idx_attendance_status ON attendance(status);
+
+-- 3. การลา
+CREATE TABLE leaves (
+    id          SERIAL PRIMARY KEY,
+    employee_id INT  NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    leave_type  VARCHAR(20) NOT NULL,                  -- SICK, PERSONAL, VACATION, OTHER
+    start_date  DATE NOT NULL,
+    end_date    DATE NOT NULL,
+    days        NUMERIC(4,1) NOT NULL,                 -- รองรับครึ่งวัน เช่น 0.5
+    reason      VARCHAR(255),
+    status      VARCHAR(20) NOT NULL DEFAULT 'PENDING',-- PENDING, APPROVED, REJECTED
+    approved_by INT REFERENCES users(id),
+    approved_at TIMESTAMP,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_leaves_type   CHECK (leave_type IN ('SICK', 'PERSONAL', 'VACATION', 'OTHER')),
+    CONSTRAINT chk_leaves_status CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    CONSTRAINT chk_leaves_dates  CHECK (end_date >= start_date),
+    CONSTRAINT chk_leaves_days   CHECK (days > 0)
+);
+
+CREATE INDEX idx_leaves_employee ON leaves(employee_id);
+CREATE INDEX idx_leaves_start_date ON leaves(start_date);
+CREATE INDEX idx_leaves_status ON leaves(status);
+
+-- 4. รายการหักอื่นๆ (เงินกู้, กองทุนสำรองเลี้ยงชีพ, ค่าชุด, ค่าเสียหาย ฯลฯ)
+CREATE TABLE payroll_deductions (
+    id             SERIAL PRIMARY KEY,
+    employee_id    INT  NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    period         VARCHAR(20) NOT NULL,               -- งวดเดือน เช่น '2026-09' (ตรงกับ payroll_items)
+    deduction_type VARCHAR(30) NOT NULL,               -- LOAN, PROVIDENT_FUND, UNIFORM, DAMAGE, OTHER
+    amount         NUMERIC(10,2) NOT NULL,
+    note           VARCHAR(255),
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_deduction_type   CHECK (deduction_type IN ('LOAN', 'PROVIDENT_FUND', 'UNIFORM', 'DAMAGE', 'OTHER')),
+    CONSTRAINT chk_deduction_amount CHECK (amount > 0)
+);
+
+CREATE INDEX idx_deductions_period ON payroll_deductions(period);
+CREATE INDEX idx_deductions_employee ON payroll_deductions(employee_id);
 
 -- 4. มอกอัพข้อมูลพนักงาน (ประจำ 15 คน + ฟรีแลนซ์ช่างประกอบตู้ไฟ 5 คน)
 INSERT INTO employees (employee_code, prefix, first_name, last_name, department, position, employment_type, base_salary, hourly_ot_rate, bank_name, bank_account_no) 
@@ -99,3 +174,58 @@ VALUES
 ('EMP018', '2026-09', 0.0, 0.00, 10, 15, 0.00, 0.00, 690.00, 0.00, 0.00), -- รวม 23,000 บาท
 ('EMP019', '2026-09', 0.0, 0.00, 25, 5, 0.00, 0.00, 750.00, 0.00, 0.00),  -- รวม 25,000 บาท
 ('EMP020', '2026-09', 0.0, 0.00, 12, 18, 0.00, 0.00, 828.00, 0.00, 0.00); -- รวม 27,600 บาท
+
+-- 6.1 ผู้ใช้ระบบ (ต้องเพิ่มก่อน leaves เพราะ leaves.approved_by อ้างอิง users.id)
+INSERT INTO users (username, password_hash, full_name, role, status)
+VALUES
+('admin', '$2b$12$REPLACE_WITH_REAL_BCRYPT_HASH_FOR_ADMIN', 'ผู้ดูแลระบบ', 'ADMIN', 'ACTIVE'),
+('hr01',  '$2b$12$REPLACE_WITH_REAL_BCRYPT_HASH_FOR_HR',    'เจ้าหน้าที่ฝ่ายบุคคล', 'HR', 'ACTIVE');
+
+-- 6.2 ข้อมูลการเข้างานตัวอย่าง เดือนกันยายน 2026
+-- employee_id 1-20 สอดคล้องกับพนักงาน EMP001-EMP020 ตามลำดับการ INSERT ด้านบน
+INSERT INTO attendance
+(employee_id, work_date, check_in, check_out, work_hours, ot_hours, status)
+VALUES
+(1,  '2026-09-01', '08:00', '17:00', 8.00, 2.00, 'NORMAL'),
+(2,  '2026-09-01', '08:20', '17:00', 7.67, 0.00, 'LATE'),
+(3,  '2026-09-01', '08:00', '19:00', 8.00, 2.00, 'NORMAL'),
+(4,  '2026-09-01', '08:05', '17:00', 7.92, 0.00, 'NORMAL'),
+(5,  '2026-09-01', '08:00', '18:00', 8.00, 1.00, 'NORMAL'),
+(6,  '2026-09-01', '08:00', '17:00', 8.00, 0.00, 'NORMAL'),
+(7,  '2026-09-01', '08:10', '17:00', 7.83, 0.00, 'LATE'),
+(8,  '2026-09-01', '08:00', '17:00', 8.00, 0.00, 'NORMAL'),
+(9,  '2026-09-01', '08:00', '17:00', 8.00, 0.00, 'NORMAL'),
+(10, '2026-09-01', '08:00', '18:00', 8.00, 1.00, 'NORMAL'),
+(11, '2026-09-01', '08:00', '17:00', 8.00, 0.00, 'NORMAL'),
+(12, '2026-09-01', '08:00', '17:00', 8.00, 0.00, 'NORMAL'),
+(13, '2026-09-01', '08:00', '17:00', 8.00, 0.00, 'NORMAL'),
+(14, '2026-09-01', '08:00', '19:00', 8.00, 2.00, 'NORMAL'),
+(15, '2026-09-01', '08:00', '17:00', 8.00, 0.00, 'NORMAL'),
+(16, '2026-09-01', '08:00', '17:00', 8.00, 0.00, 'NORMAL'),
+(17, '2026-09-01', '08:00', '17:00', 8.00, 0.00, 'NORMAL'),
+(18, '2026-09-01', '08:00', '17:00', 8.00, 0.00, 'NORMAL'),
+(19, '2026-09-01', '08:00', '17:00', 8.00, 0.00, 'NORMAL'),
+(20, '2026-09-01', NULL, NULL, 0.00, 0.00, 'LEAVE');
+
+-- 6.3 ข้อมูลการลา
+INSERT INTO leaves
+(employee_id, leave_type, start_date, end_date, days, reason, status, approved_by, approved_at)
+VALUES
+(2,  'SICK',     '2026-09-08', '2026-09-08', 1.0, 'ลาป่วย', 'APPROVED', 2, '2026-09-07 16:30:00'),
+(4,  'PERSONAL', '2026-09-10', '2026-09-10', 1.0, 'ทำธุระส่วนตัว', 'APPROVED', 2, '2026-09-09 15:00:00'),
+(8,  'VACATION', '2026-09-14', '2026-09-15', 2.0, 'ลาพักร้อน', 'APPROVED', 2, '2026-09-10 10:00:00'),
+(11, 'SICK',     '2026-09-18', '2026-09-18', 0.5, 'ลาป่วยครึ่งวัน', 'PENDING', NULL, NULL),
+(16, 'PERSONAL', '2026-09-22', '2026-09-22', 1.0, 'ติดธุระส่วนตัว', 'REJECTED', 2, '2026-09-20 13:00:00');
+
+-- 6.4 รายการหักเงินเดือนเพิ่มเติม งวด 2026-09
+INSERT INTO payroll_deductions
+(employee_id, period, deduction_type, amount, note)
+VALUES
+(1,  '2026-09', 'LOAN',            2000.00, 'หักชำระเงินกู้ประจำเดือน'),
+(2,  '2026-09', 'PROVIDENT_FUND',   840.00, 'เงินสะสมกองทุนสำรองเลี้ยงชีพ'),
+(3,  '2026-09', 'UNIFORM',          350.00, 'ค่าชุดทำงาน'),
+(4,  '2026-09', 'DAMAGE',           500.00, 'ค่าเสียหายอุปกรณ์ตามที่ตรวจสอบแล้ว'),
+(5,  '2026-09', 'OTHER',            200.00, 'รายการหักอื่น ๆ'),
+(8,  '2026-09', 'LOAN',            1500.00, 'หักชำระเงินกู้ประจำเดือน'),
+(12, '2026-09', 'PROVIDENT_FUND',  1140.00, 'เงินสะสมกองทุนสำรองเลี้ยงชีพ'),
+(14, '2026-09', 'UNIFORM',          350.00, 'ค่าชุดทำงาน');
