@@ -13,26 +13,13 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/Database.sql # สั่งรัน SQL สร้าง Table ตอนเริ่มแรก
+      # สั่งรัน SQL สร้าง Table ตอนเริ่มแรก
+      - ./Database.sql:/docker-entrypoint-initdb.d/Database.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d payroll_db"]
       interval: 5s
       timeout: 5s
       retries: 5
-
-  app:
-    build: .
-    container_name: payroll_api_container
-    restart: always
-    ports:
-      - "8080:8080"
-    environment:
-      # ใช้ host เป็น 'db' ตามชื่อ service ด้านบน
-      DATABASE_URL: "postgres://postgres:password@db:5432/payroll_db?sslmode=disable"
-      PORT: "8080"
-    depends_on:
-      db:
-        condition: service_healthy # รอให้ Database พร้อมจริงๆ ก่อนค่อยสตาร์ท Go
 
 volumes:
   pgdata:
