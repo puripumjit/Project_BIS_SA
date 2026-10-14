@@ -350,3 +350,184 @@ func (h *Handler) CreatePayroll(w http.ResponseWriter, r *http.Request) {
 	}
 	respondJSON(w, http.StatusCreated, row)
 }
+
+// ---------- Payroll Tax ----------
+
+// แถวสำหรับหน้าภาษี = PayrollRow + ฟิลด์ที่หน้าเว็บใช้แสดง
+type PayrollTaxItem struct {
+	PayrollRow
+	Name   string  `json:"name"`
+	Income float64 `json:"income"` // เงินได้ทั้งสิ้น = gross_income
+}
+
+// GET /payrolltax?period=2026-09&department=...&employment_type=...
+// ไม่ใส่ period = งวดล่าสุด  ตอบเป็น array ตรง ๆ
+func (h *Handler) GetPayrollTaxList(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+
+	period := q.Get("period")
+	if period == "" {
+		periods, err := h.listPeriods()
+		if err != nil {
+			http.Error(w, "โหลดงวดเงินเดือนล้มเหลว: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if len(periods) > 0 {
+			period = periods[0]
+		}
+	}
+
+	items := []PayrollTaxItem{}
+	if period == "" {
+		respondJSON(w, http.StatusOK, items)
+		return
+	}
+
+	query := rowSelect + ` WHERE p.period = $1`
+	args := []any{period}
+	if v := q.Get("department"); v != "" {
+		args = append(args, v)
+		query += ` AND e.department = $` + strconv.Itoa(len(args))
+	}
+	if v := q.Get("employment_type"); v != "" {
+		args = append(args, v)
+		query += ` AND e.employment_type = $` + strconv.Itoa(len(args))
+	}
+	query += ` ORDER BY e.id`
+
+	rows, err := h.db.Query(query, args...)
+	if err != nil {
+		http.Error(w, "โหลดข้อมูลภาษีล้มเหลว: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		row, err := scanRow(rows)
+		if err != nil {
+			http.Error(w, "อ่านข้อมูลภาษีล้มเหลว: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		items = append(items, PayrollTaxItem{
+			PayrollRow: row,
+			Name:       strings.TrimSpace(row.Prefix + row.FirstName + " " + row.LastName),
+			Income:     row.GrossIncome,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "อ่านข้อมูลภาษีล้มเหลว: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	respondJSON(w, http.StatusOK, items)
+}
+
+// PUT /payrolltax/{id}
+// ส่งเฉพาะ field ที่ต้องการแก้ (ไม่ส่ง = คงค่าเดิม)
+// ไม่ให้แก้ period เพราะ payroll_deductions ผูกกับ employee_id + period
+// ไม่มี base_salary เพราะเก็บอยู่ใน employees
+func (h *Handler) UpdatePayrollTax(w http.ResponseWriter, r *http.Request) {
+	id, ok := payrollIDFromPath(r.URL.Path)
+	if !ok {
+		http.Error(w, "id ไม่ถูกต้อง", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		OTHours              *float64 `json:"ot_hours"`
+		OTAmount             *float64 `json:"ot_amount"`
+		SmallPanelQty        *int     `json:"small_panel_qty"`
+		SmallPanelRate       *float64 `json:"small_panel_rate"`
+		LargePanelQty        *int     `json:"large_panel_qty"`
+		LargePanelRate       *float64 `json:"large_panel_rate"`
+		OtherIncome          *float64 `json:"other_income"`
+		LateAbsenceDeduction *float64 `json:"late_absence_deduction"`
+		TaxAmount            *float64 `json:"tax_amount"`
+		SocialSecurity       *float64 `json:"social_security"`
+		OtherDeduction       *float64 `json:"other_deduction"`
+		Status               *string  `json:"status"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "JSON ไม่ถูกต้อง", http.StatusBadRequest)
+		return
+	}
+
+	row, err := scanRow(h.db.QueryRow(rowSelect+` WHERE p.id = $1`, id))
+	if err == sql.ErrNoRows {
+		http.Error(w, "ไม่พบรายการเงินเดือน", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "โหลดข้อมูลล้มเหลว: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	setF := func(dst, src *float64) {
+		if src != nil {
+			*dst = round2(*src)
+		}
+	}
+	setF(&row.OTHours, req.OTHours)
+	setF(&row.OTAmount, req.OTAmount)
+	setF(&row.SmallPanelRate, req.SmallPanelRate)
+	setF(&row.LargePanelRate, req.LargePanelRate)
+	setF(&row.OtherIncome, req.OtherIncome)
+	setF(&row.LateAbsenceDeduction, req.LateAbsenceDeduction)
+	setF(&row.TaxAmount, req.TaxAmount)
+	setF(&row.SocialSecurity, req.SocialSecurity)
+	setF(&row.OtherDeduction, req.OtherDeduction)
+	if req.SmallPanelQty != nil {
+		row.SmallPanelQty = *req.SmallPanelQty
+	}
+	if req.LargePanelQty != nil {
+		row.LargePanelQty = *req.LargePanelQty
+	}
+	if req.Status != nil {
+		s := strings.ToUpper(strings.TrimSpace(*req.Status))
+		if !validStatus(s) {
+			http.Error(w, "สถานะต้องเป็น DRAFT, APPROVED หรือ PAID", http.StatusBadRequest)
+			return
+		}
+		row.Status = s
+	}
+
+	if row.SmallPanelQty < 0 || row.LargePanelQty < 0 {
+		http.Error(w, "จำนวนต้องไม่ติดลบ", http.StatusBadRequest)
+		return
+	}
+	for _, v := range []float64{
+		row.OTHours, row.OTAmount, row.SmallPanelRate, row.LargePanelRate,
+		row.OtherIncome, row.LateAbsenceDeduction, row.TaxAmount,
+		row.SocialSecurity, row.OtherDeduction,
+	} {
+		if v < 0 {
+			http.Error(w, "จำนวนเงินต้องไม่ติดลบ", http.StatusBadRequest)
+			return
+		}
+	}
+
+	_, err = h.db.Exec(`
+		UPDATE payroll_items SET
+			ot_hours = $1, ot_amount = $2,
+			small_panel_qty = $3, small_panel_rate = $4,
+			large_panel_qty = $5, large_panel_rate = $6,
+			other_income = $7, late_absence_deduction = $8, tax_amount = $9,
+			social_security = $10, other_deduction = $11, status = $12
+		WHERE id = $13`,
+		row.OTHours, row.OTAmount,
+		row.SmallPanelQty, row.SmallPanelRate,
+		row.LargePanelQty, row.LargePanelRate,
+		row.OtherIncome, row.LateAbsenceDeduction, row.TaxAmount,
+		row.SocialSecurity, row.OtherDeduction, row.Status, id,
+	)
+	if err != nil {
+		http.Error(w, "อัปเดตข้อมูลล้มเหลว: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	updated, err := scanRow(h.db.QueryRow(rowSelect+` WHERE p.id = $1`, id))
+	if err != nil {
+		http.Error(w, "บันทึกสำเร็จแต่โหลดข้อมูลกลับล้มเหลว: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	respondJSON(w, http.StatusOK, updated)
+}

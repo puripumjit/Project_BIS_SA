@@ -26,53 +26,6 @@ export default function Settings() {
         <h1 className="text-2xl font-bold text-slate-900">การตั้งค่า</h1>
       </div>
 
-      {/* แถบแท็บด้านบน */}
-      <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap gap-2.5">
-        <button
-          onClick={() => setActiveTab('general')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-            activeTab === 'general'
-              ? 'bg-[#2563EB] text-white shadow-sm'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-          }`}
-        >
-          <span>⚙️</span> การตั้งค่าทั่วไป
-        </button>
-
-        <button
-          onClick={() => setActiveTab('salary-tax')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-            activeTab === 'salary-tax'
-              ? 'bg-[#2563EB] text-white shadow-sm'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-          }`}
-        >
-          <span>🗂️</span> เงินเดือนและภาษี
-        </button>
-
-        <button
-          onClick={() => setActiveTab('permissions')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-            activeTab === 'permissions'
-              ? 'bg-[#2563EB] text-white shadow-sm'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-          }`}
-        >
-          <span>🛡️</span> สิทธิ์การเข้าถึง
-        </button>
-
-        <button
-          onClick={() => setActiveTab('notifications')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-            activeTab === 'notifications'
-              ? 'bg-[#2563EB] text-white shadow-sm'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-          }`}
-        >
-          <span>🔔</span> การแจ้งเตือน
-        </button>
-      </div>
-
       {/* เนื้อหาการตั้งค่าแบ่งเป็น 2 คอลัมน์ */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         

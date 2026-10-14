@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import {
-  fetchTaxDetail, updateTax, calcTax, fmt, fullName, formatPeriod,
-  FORM_KEYS, STATUS_LABEL,
-} from './PayrollTax';
+// import {
+//   fetchTaxDetail, updateTax, calcTax, fmt, fullName, formatPeriod,
+//   FORM_KEYS, STATUS_LABEL,
+// } from './PayrollTax';
 
 const INCOME_ROWS = [
   ['salary', 'เงินเดือน (ตามสัญญาจ้าง)'],
