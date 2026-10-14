@@ -1,134 +1,252 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { API_URL } from '../config';
+
+const PAGE_SIZE = 10;
+const LAW_URL = 'https://www.sso.go.th';
+
+const fmt = (n) =>
+  Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+const selectClass =
+  'w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500';
+
+const EMPTY = {
+  rate: 0.05,
+  wage_cap: 0,
+  wage_floor: 0,
+  departments: [],
+  types: [],
+  items: [],
+  grand_total: 0,
+};
+
+function StatCard({ icon, label, value, unit }) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-5 flex items-center gap-5">
+      <div className="w-14 h-14 rounded-full bg-blue-100 text-[#1E3A8A] flex items-center justify-center shrink-0">
+        {icon}
+      </div>
+      <div>
+        <div className="text-sm font-bold text-[#1E3A8A]">{label}</div>
+        <div className="text-3xl font-bold text-slate-900 leading-tight">
+          {value}
+          <span className="text-base font-bold ml-1.5">{unit}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const PeopleIcon = () => (
+  <svg className="w-7 h-7 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+  </svg>
+);
+const MoneyIcon = () => (
+  <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h12v4M3 7v10a2 2 0 002 2h14a1 1 0 001-1v-3M3 7h16a1 1 0 011 1v3M16 14h5v-3h-5a1.5 1.5 0 000 3z" />
+  </svg>
+);
 
 export default function PayrollSocialSecurity() {
-  // ข้อมูลจำลองตารางประกันสังคม
-  const socialSecurityList = [
-    { no: 1, id: 'EMP001', name: 'สมชาย ใจดี', baseSalary: '30,000', empDeduct: '1,500', compDeduct: '1,500' },
-    { no: 2, id: 'EMP002', name: 'สมหญิง จริงใจ', baseSalary: '25,000', empDeduct: '1,250', compDeduct: '1,250' },
-    { no: 3, id: 'EMP003', name: 'ธนากร ศรีสุข', baseSalary: '15,000', empDeduct: '750', compDeduct: '750' },
-    { no: 4, id: 'EMP004', name: 'ณัฐชา วงศ์ดี', baseSalary: '28,000', empDeduct: '1,400', compDeduct: '1,000' },
-    { no: 5, id: 'EMP005', name: 'ปรางทิพย์ อินทร์นิล', baseSalary: '18,000', empDeduct: '900', compDeduct: '900' },
-  ];
+  const [data, setData] = useState(EMPTY);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // draft = ค่าที่เลือกใน dropdown, applied = ค่าที่กดค้นหาแล้ว
+  const [draft, setDraft] = useState({ department: '', type: '' });
+  const [applied, setApplied] = useState({ department: '', type: '' });
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    const params = new URLSearchParams();
+    if (applied.department) params.set('department', applied.department);
+    if (applied.type) params.set('employment_type', applied.type);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+
+    fetch(`${API_URL}/social-security${qs}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`โหลดข้อมูลไม่สำเร็จ (รหัสสถานะ: ${res.status})`);
+        return res.json();
+      })
+      .then((d) => {
+        setData({ ...EMPTY, ...d, items: Array.isArray(d.items) ? d.items : [] });
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Fetch Error:', err);
+        setError(err.message);
+        setLoading(false);
+      });
+  }, [applied]);
+
+  const handleSearch = () => {
+    setPage(1);
+    setApplied(draft);
+  };
+
+  const pct = `${Math.round(data.rate * 1000) / 10}%`;
+
+  const pageCount = Math.max(1, Math.ceil(data.items.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const start = (safePage - 1) * PAGE_SIZE;
+  const pageItems = data.items.slice(start, start + PAGE_SIZE);
 
   return (
-    <div className="w-full text-slate-800 space-y-6">
-      {/* หัวข้อหน้า */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">ประกันสังคม</h1>
-        <p className="text-xs text-slate-500 mt-1">รายละเอียดการคำนวณเงินสมทบประกันสังคม</p>
+    <div className="w-full text-slate-800">
+      <h1 className="text-xl font-bold text-[#1E3A8A] mb-4">ข้อมูลประกันสังคม</h1>
+
+      {/* การ์ดสรุป */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+        <StatCard icon={<PeopleIcon />} label="พนักงานทั้งหมด" value={data.items.length} unit="คน" />
+        <StatCard
+          icon={<MoneyIcon />}
+          label="เงินสมทบรวม (นายจ้าง + ลูกจ้าง)"
+          value={fmt(data.grand_total)}
+          unit="บาท"
+        />
       </div>
 
-      {/* การ์ดสรุป 4 กล่องด้านบน */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* ผู้ประกันตน */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shrink-0">
-            <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-            </svg>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500">ผู้ประกันตน</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-0.5">
-              98 <span className="text-base font-bold">คน</span>
-            </p>
-          </div>
+      {/* ตัวกรอง */}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end mb-5 max-w-3xl">
+        <div>
+          <label className="block text-xs font-bold text-[#1E3A8A] mb-1.5">แผนก</label>
+          <select
+            value={draft.department}
+            onChange={(e) => setDraft((f) => ({ ...f, department: e.target.value }))}
+            className={selectClass}
+          >
+            <option value="">ทั้งหมด</option>
+            {data.departments.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
         </div>
-
-        {/* เงินสมทบพนักงาน */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0">
-            <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-              <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
-            </svg>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500">เงินสมทบพนักงาน</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-0.5">
-              140,760 <span className="text-base font-bold">บาท</span>
-            </p>
-          </div>
+        <div>
+          <label className="block text-xs font-bold text-[#1E3A8A] mb-1.5">ประเภทพนักงาน</label>
+          <select
+            value={draft.type}
+            onChange={(e) => setDraft((f) => ({ ...f, type: e.target.value }))}
+            className={selectClass}
+          >
+            <option value="">ทั้งหมด</option>
+            {data.types.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
         </div>
-
-        {/* เงินสมทบนายจ้าง */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl shrink-0">
-            <svg className="w-6 h-6 stroke-current" fill="none" viewBox="0 0 24 24" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500">เงินสมทบนายจ้าง</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-0.5">
-              140,760 <span className="text-base font-bold">บาท</span>
-            </p>
-          </div>
-        </div>
-
-        {/* รวมเงินสมทบ */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center text-xl shrink-0">
-            <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1z"/>
-            </svg>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500">รวมเงินสมทบ</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-0.5">
-              281,520 <span className="text-base font-bold">บาท</span>
-            </p>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={handleSearch}
+          className="bg-[#2563EB] hover:bg-blue-700 text-white text-sm font-semibold px-8 py-2.5 rounded-lg shadow-sm"
+        >
+          ค้นหา
+        </button>
       </div>
 
-      {/* ตารางรายละเอียดประกันสังคม */}
-      <div>
-        <h2 className="text-base font-bold text-slate-900 mb-3">
-          รายละเอียดประกันสังคม
-        </h2>
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl">
+          เกิดข้อผิดพลาด: {error}
+        </div>
+      )}
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-[#E5E7EB] text-slate-800 font-bold border-b border-slate-300">
-                  <th className="py-3.5 px-4 text-center">ลำดับ</th>
-                  <th className="py-3.5 px-4 text-center">รหัสพนักงาน</th>
-                  <th className="py-3.5 px-6">ชื่อ-สกุล</th>
-                  <th className="py-3.5 px-4 text-center">ฐานคำนวณ</th>
-                  <th className="py-3.5 px-4 text-center">พนักงาน (5%)</th>
-                  <th className="py-3.5 px-4 text-center">นายจ้าง (5%)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {socialSecurityList.map((row) => (
-                  <tr key={row.no} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-4 text-center text-slate-600 font-medium">{row.no}</td>
-                    <td className="py-3.5 px-4 text-center text-slate-900 font-medium">{row.id}</td>
-                    <td className="py-3.5 px-6 font-medium text-slate-800 whitespace-nowrap">{row.name}</td>
-                    <td className="py-3.5 px-4 text-center font-medium text-slate-700">{row.baseSalary}</td>
-                    <td className="py-3.5 px-4 text-center font-semibold text-slate-800">{row.empDeduct}</td>
-                    <td className="py-3.5 px-4 text-center font-semibold text-slate-800">{row.compDeduct}</td>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_16rem] gap-5 items-start">
+        {/* ตาราง */}
+        <div>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead className="bg-[#E5E7EB] text-slate-800 font-bold">
+                  <tr>
+                    <th className="py-3 px-3 text-center">ลำดับ</th>
+                    <th className="py-3 px-3 text-center">รหัสพนักงาน</th>
+                    <th className="py-3 px-3 text-left">ชื่อ-นามสกุล</th>
+                    <th className="py-3 px-3 text-right">ฐานค่าจ้าง</th>
+                    <th className="py-3 px-3 text-right">เงินสมทบ ({pct})</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {loading ? (
+                    <tr>
+                      <td colSpan="5" className="py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td>
+                    </tr>
+                  ) : pageItems.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="py-8 text-center text-slate-400">ไม่พบข้อมูลพนักงาน</td>
+                    </tr>
+                  ) : (
+                    pageItems.map((item, idx) => (
+                      <tr key={item.id} className="hover:bg-slate-50/70">
+                        <td className="py-3 px-3 text-center">{start + idx + 1}</td>
+                        <td className="py-3 px-3 text-center font-medium">{item.employee_code}</td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          {`${item.prefix || ''}${item.first_name} ${item.last_name}`}
+                        </td>
+                        <td className="py-3 px-3 text-right">{fmt(item.wage_base)}</td>
+                        <td className="py-3 px-3 text-right font-medium">{fmt(item.contribution)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* กล่องหมายเหตุสีฟ้า */}
-      <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4 flex items-start gap-3 text-xs text-blue-900">
-        <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5">
-          i
+          {data.items.length > PAGE_SIZE && (
+            <div className="flex justify-end items-center gap-1.5 mt-4 text-xs">
+              <button
+                type="button"
+                disabled={safePage === 1}
+                onClick={() => setPage(safePage - 1)}
+                className="w-7 h-7 rounded border border-slate-300 bg-white disabled:opacity-40"
+                aria-label="หน้าก่อนหน้า"
+              >
+                ‹
+              </button>
+              <span className="px-2 text-slate-600">
+                {safePage} / {pageCount}
+              </span>
+              <button
+                type="button"
+                disabled={safePage === pageCount}
+                onClick={() => setPage(safePage + 1)}
+                className="w-7 h-7 rounded border border-slate-300 bg-white disabled:opacity-40"
+                aria-label="หน้าถัดไป"
+              >
+                ›
+              </button>
+            </div>
+          )}
         </div>
-        <div className="space-y-1">
-          <p className="font-bold">หมายเหตุ</p>
-          <ul className="list-disc list-inside space-y-0.5 text-blue-800">
-            <li>เงินสมทบคำนวณจากฐานค่าจ้างตามกฎหมาย (สูงสุด 15,000 บาท)</li>
-            <li>สามารถตั้งค่าอัตราและฐานคำนวณได้ที่เมนู ตั้งค่าระบบ</li>
-          </ul>
-        </div>
+
+        {/* ข้อมูลอัตรา */}
+        <aside className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <h2 className="text-sm font-bold text-slate-900 mb-4">ข้อมูลอัตรา</h2>
+
+          <div className="mb-4">
+            <div className="text-xs font-bold text-[#1E3A8A]">อัตราเงินสมทบ</div>
+            <div className="text-xs text-slate-600 mt-0.5">{pct} ของค่าจ้าง</div>
+          </div>
+          <div className="mb-4">
+            <div className="text-xs font-bold text-[#1E3A8A]">เพดานค่าจ้าง</div>
+            <div className="text-xs text-slate-600 mt-0.5">{fmt(data.wage_cap)} บาท</div>
+          </div>
+          <div className="mb-5">
+            <div className="text-xs font-bold text-[#1E3A8A]">ค่าจ้างขั้นต่ำที่ใช้คำนวณ</div>
+            <div className="text-xs text-slate-600 mt-0.5">{fmt(data.wage_floor)} บาท</div>
+          </div>
+
+          <a
+            href={LAW_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-center text-xs font-semibold text-[#2563EB] border border-blue-300 hover:bg-blue-50 rounded-lg px-3 py-2"
+          >
+            ดูรายละเอียดกฎหมาย
+          </a>
+        </aside>
       </div>
     </div>
   );

@@ -14,10 +14,12 @@ import Attendance from './pages/Attendance';
 import Leaves from './pages/Leaves';
 import PayrollCalculate from './pages/PayrollCalculate';
 import PayrollTax from './pages/PayrollTax';
+import PayrollTaxEdit from './pages/PayrollTaxEdit';  
 import PayrollSocialSecurity from './pages/PayrollSocialSecurity';
 import PayrollDeductions from './pages/PayrollDeductions';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import PayrollDetail from './pages/PayrollDetail';
 
 // หน้าตัวอย่างจำลอง
 function DashboardHome() {
@@ -81,8 +83,10 @@ export default function App() {
 
           <Route path="leaves" element={<Leaves />} />
           <Route path="payroll/calculate" element={<PayrollCalculate />} />
-          <Route path="payroll/tax" element={<PayrollTax />} />
-          <Route path="payroll/social-security" element={<PayrollSocialSecurity />} />
+          <Route path="/payroll/calculate/:id" element={<PayrollDetail />} />
+          <Route path="payroll/tax" element={<PayrollTax />} />  
+          <Route path="/payroll/tax/:id/edit" element={<PayrollTaxEdit />} />
+          <Route path="/payroll/social-security" element={<PayrollSocialSecurity />} />
           <Route path="payroll/deductions" element={<PayrollDeductions />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />

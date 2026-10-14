@@ -111,7 +111,11 @@ func main() {
 	mux.HandleFunc("DELETE /employees/{id}", empHandler.DeleteEmployee)
 
 	// Routes สำหรับ Payroll
+	mux.HandleFunc("GET /payroll", payHandler.GetPayrollSummary)
+	mux.HandleFunc("GET /payroll/{id}", payHandler.GetPayrollDetail)
+	mux.HandleFunc("PUT /payroll/{id}/status", payHandler.UpdatePayrollStatus)
 	mux.HandleFunc("POST /payroll", payHandler.CreatePayroll)
+	mux.HandleFunc("GET /social-security", payHandler.GetSocialSecurity)
 
 	// Routes สำหรับ Users
 	mux.HandleFunc("POST /users", userHandler.CreateUser)
@@ -125,6 +129,10 @@ func main() {
 	mux.HandleFunc("POST /leaves", leaveHandler.CreateLeave)
 	mux.HandleFunc("GET /leaves", leaveHandler.GetLeaves)
 	mux.HandleFunc("PATCH /leaves/{id}", leaveHandler.UpdateLeaveStatus)
+	mux.HandleFunc("GET /tax", payHandler.GetTaxList)
+	mux.HandleFunc("GET /tax/{id}", payHandler.GetTaxDetail)
+	mux.HandleFunc("PUT /tax/{id}", payHandler.UpdateTaxProfile)
+	mux.HandleFunc("POST /tax/calculate", payHandler.CalculateTax)
 
 	// Routes สำหรับ Payroll Deductions
 	mux.HandleFunc("POST /payroll-deductions", deductionHandler.CreateDeduction)
