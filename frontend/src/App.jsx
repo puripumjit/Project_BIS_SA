@@ -5,7 +5,11 @@ import Header from './components/header';
 import Login from './pages/login';
 import Homepage from './pages/Homepage';
 import PermanentEmployee from './pages/PermanentEmployee';
+import EmployeeForm from './pages/EmployeeForm';
+import EmployeeDelete from './pages/EmployeeDelete';
 import Freelance from './pages/Freelance';
+import FreelanceForm from './pages/FreelanceForm';
+import FreelanceDelete from './pages/FreelanceDelete';
 import Attendance from './pages/Attendance';
 import Leaves from './pages/Leaves';
 import PayrollCalculate from './pages/PayrollCalculate';
@@ -52,26 +56,36 @@ function MainLayout() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>                                                
+      <Routes>
         {/* หน้า Login แยกเดี่ยว (พื้นหลังขาวล้วน ไม่มีแถบ Sidebar/Header) */}
         <Route path="/login" element={<Login />} />
 
         {/* หน้าหลักภายในระบบ */}
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Homepage />} />
+
+          {/* พนักงานประจำ: รายการ / เพิ่ม / แก้ไข / ลบ */}
           <Route path="employees/permanent" element={<PermanentEmployee />} />
+          <Route path="employees/permanent/new" element={<EmployeeForm />} />
+          <Route path="employees/permanent/:id/edit" element={<EmployeeForm />} />
+          <Route path="employees/permanent/delete" element={<EmployeeDelete />} />
+
+          {/* ฟรีแลนซ์: รายการ / เพิ่ม / แก้ไข / ลบ */}
           <Route path="employees/freelance" element={<Freelance />} />
-          
-          {/* หน้าบันทึกการเข้าทำงาน (เรียกใช้งานผ่าน path: /attendance-record) */}
+          <Route path="employees/freelance/new" element={<FreelanceForm />} />
+          <Route path="employees/freelance/:id/edit" element={<FreelanceForm />} />
+          <Route path="employees/freelance/delete" element={<FreelanceDelete />} />
+
+          {/* หน้าบันทึกการเข้าทำงาน */}
           <Route path="/attendance" element={<Attendance />} />
-          
+
           <Route path="leaves" element={<Leaves />} />
           <Route path="payroll/calculate" element={<PayrollCalculate />} />
           <Route path="payroll/tax" element={<PayrollTax />} />
           <Route path="payroll/social-security" element={<PayrollSocialSecurity />} />
           <Route path="payroll/deductions" element={<PayrollDeductions />} />
           <Route path="reports" element={<Reports />} />
-          <Route path="settings" element={<Settings />} />  
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>

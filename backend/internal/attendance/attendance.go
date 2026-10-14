@@ -1,21 +1,21 @@
-
 package attendance
 
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 )
 
 type Attendance struct {
-	ID        int     `json:"id"`
-	EmployeeID int    `json:"employee_id"`
-	WorkDate  string  `json:"work_date"`
-	CheckIn   string  `json:"check_in"`
-	CheckOut  string  `json:"check_out"`
-	WorkHours float64 `json:"work_hours"`
-	OTHours   float64 `json:"ot_hours"`
-	Status    string  `json:"status"`
+	ID         int     `json:"id"`
+	EmployeeID int     `json:"employee_id"`
+	WorkDate   string  `json:"work_date"`
+	CheckIn    string  `json:"check_in"`
+	CheckOut   string  `json:"check_out"`
+	WorkHours  float64 `json:"work_hours"`
+	OTHours    float64 `json:"ot_hours"`
+	Status     string  `json:"status"`
 }
 
 type Handler struct {
@@ -58,6 +58,7 @@ func (h *Handler) CreateAttendance(w http.ResponseWriter, r *http.Request) {
 		a.WorkHours, a.OTHours, a.Status).Scan(&id)
 
 	if err != nil {
+		log.Printf("CreateAttendance error: %v", err)
 		http.Error(w, "บันทึกเวลาเข้างานไม่สำเร็จ", http.StatusBadRequest)
 		return
 	}
@@ -74,11 +75,14 @@ func (h *Handler) GetAttendance(w http.ResponseWriter, r *http.Request) {
 		SELECT id, employee_id, work_date::text,
 			COALESCE(to_char(check_in, 'HH24:MI:SS'), ''),
 			COALESCE(to_char(check_out, 'HH24:MI:SS'), ''),
-			work_hours, ot_hours, status
+			COALESCE(work_hours, 0),
+			COALESCE(ot_hours, 0),
+			COALESCE(status, '')
 		FROM attendance
-		ORDER BY work_date DESC, id DESC
+		ORDER BY work_date ASC, id ASC
 	`)
 	if err != nil {
+		log.Printf("GetAttendance query error: %v", err)
 		http.Error(w, "อ่านข้อมูลเข้างานไม่สำเร็จ", http.StatusInternalServerError)
 		return
 	}
@@ -92,6 +96,7 @@ func (h *Handler) GetAttendance(w http.ResponseWriter, r *http.Request) {
 			&a.CheckIn, &a.CheckOut, &a.WorkHours,
 			&a.OTHours, &a.Status,
 		); err != nil {
+			log.Printf("GetAttendance scan error: %v", err)
 			http.Error(w, "อ่านข้อมูลไม่สำเร็จ", http.StatusInternalServerError)
 			return
 		}
@@ -99,6 +104,7 @@ func (h *Handler) GetAttendance(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := rows.Err(); err != nil {
+		log.Printf("GetAttendance rows error: %v", err)
 		http.Error(w, "อ่านข้อมูลไม่สำเร็จ", http.StatusInternalServerError)
 		return
 	}
