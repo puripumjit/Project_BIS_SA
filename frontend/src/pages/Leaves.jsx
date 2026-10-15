@@ -280,7 +280,7 @@ export default function Leaves() {
           <CalendarDays className="w-9 h-9" strokeWidth={1.6} />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-[#1E3A8A]">สถิติการลา / ขาด / สาย</h1>
+          <h1 className="text-2xl font-bold text-[#00000]">สถิติการลา / ขาด / สาย</h1>
           <p className="text-sm text-slate-500">ดูข้อมูลการลา ขาดงาน และมาสายของพนักงาน พร้อมสรุปสถิติรายบุคคลและรายแผนก</p>
         </div>
       </div>

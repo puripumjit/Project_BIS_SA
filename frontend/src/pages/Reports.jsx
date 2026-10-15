@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_URL } from '../config';
+import { LayoutDashboard } from 'lucide-react';
 
 const SHORT_MONTHS = [
   'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
@@ -268,9 +269,9 @@ export default function Reports() {
     v == null
       ? '-----'
       : Number(v).toLocaleString('th-TH', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        });
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
 
   /* ---------- ออกรายงาน PDF (เปิดหน้าต่างพิมพ์ แล้วเลือก "บันทึกเป็น PDF") ---------- */
   const handleExportPdf = () => {
@@ -386,7 +387,17 @@ export default function Reports() {
   return (
     <div className="w-full text-slate-800 space-y-6">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-slate-900">แดชบอร์ดภาพรวม</h1>
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <LayoutDashboard className="w-7 h-7" strokeWidth={1.8} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">แดชบอร์ดภาพรวม</h1>
+            <p className="text-sm text-slate-600">
+              สรุปภาพรวมเงินเดือน ภาษี ประกันสังคม และสถานะการเข้างานของพนักงาน
+            </p>
+          </div>
+        </div>
         <button
           type="button"
           onClick={handleExportPdf}

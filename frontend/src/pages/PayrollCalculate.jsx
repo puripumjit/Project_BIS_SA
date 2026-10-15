@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_URL } from '../config';
+import { Calculator } from 'lucide-react';
 
 const DETAIL_PATH = '/payroll/calculate';
 const SLIP_PATH = '/payroll/slip';
@@ -131,10 +132,20 @@ export default function PayrollCalculate() {
 
   return (
     <div className="w-full text-slate-800">
-      <h1 className="text-xl font-bold text-[#000000] mb-4">การคำนวณเงินเดือน</h1>
+      <div className="flex items-center gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+          <Calculator className="w-7 h-7" strokeWidth={1.8} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">การคำนวณเงินเดือน</h1>
+          <p className="text-sm text-slate-600">
+            คำนวณเงินเดือน ค่าล่วงเวลา รายการหัก และยอดสุทธิของพนักงานในแต่ละงวด
+          </p>
+        </div>
+      </div>
 
       {/* ตัวกรอง */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-5">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 m-5">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <div>
             <label className="block text-xs font-bold text-[#1E3A8A] mb-1.5">รอบเงินเดือน</label>
@@ -286,11 +297,10 @@ export default function PayrollCalculate() {
               key={p}
               type="button"
               onClick={() => setPage(p)}
-              className={`w-7 h-7 rounded border ${
-                p === safePage
+              className={`w-7 h-7 rounded border ${p === safePage
                   ? 'bg-blue-500 border-blue-500 text-white'
                   : 'bg-white border-slate-300 text-slate-700'
-              }`}
+                }`}
             >
               {p}
             </button>

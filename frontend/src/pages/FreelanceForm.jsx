@@ -55,6 +55,35 @@ const BANKS = ['กสิกรไทย', 'ไทยพาณิชย์', '�
 const DEFAULT_SMALL_RATE = 800;
 const DEFAULT_LARGE_RATE = 1000;
 
+const CODE_PREFIX = 'FR';
+const CODE_DIGITS = 3; // ใช้เมื่อยังไม่มีรหัสเดิมให้อ้างอิง
+
+// หารหัสที่เลขท้ายมากที่สุดของฟรีแลนซ์ แล้วบวก 1
+// (รองรับรูปแบบ FR005, FR-005, fr005 ฯลฯ และใช้คำนำหน้า/จำนวนหลักตามของเดิม)
+const getNextCode = (list) => {
+  const freelancers = (Array.isArray(list) ? list : []).filter(
+    (e) => e.employment_type === 'ฟรีแลนซ์'
+  );
+
+  let max = 0;
+  let prefix = CODE_PREFIX;
+  let digits = CODE_DIGITS;
+
+  freelancers.forEach((e) => {
+    const code = String(e.employee_code || '').trim();
+    const m = /^(.*?)(\d+)$/.exec(code);
+    if (!m) return;
+    const num = parseInt(m[2], 10);
+    if (num >= max) {
+      max = num;
+      prefix = m[1];
+      digits = m[2].length;
+    }
+  });
+
+  return `${prefix}${String(max + 1).padStart(digits, '0')}`;
+};
+
 const EMPTY_FORM = {
   employee_code: '',
   prefix: 'นาย',
@@ -120,7 +149,7 @@ export default function FreelanceForm() {
   const [form, setForm] = useState(EMPTY_FORM);
   // ข้อมูลเดิมจากฐานข้อมูล: ฟิลด์ที่ฟอร์มนี้ไม่ได้แก้ (เช่น ที่อยู่ บัญชีธนาคาร สถานะการจ่าย) จะถูกส่งกลับไปเหมือนเดิม
   const [original, setOriginal] = useState({});
-  const [loading, setLoading] = useState(isEdit);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -130,7 +159,6 @@ export default function FreelanceForm() {
   const largeRate = Number(original.large_rate) || DEFAULT_LARGE_RATE;
 
   useEffect(() => {
-    if (!isEdit) return;
     setLoading(true);
     fetch(`${API_URL}/employees`)
       .then((res) => {
@@ -138,6 +166,14 @@ export default function FreelanceForm() {
         return res.json();
       })
       .then((list) => {
+        // โหมดเพิ่ม: สร้างรหัสถัดไปอัตโนมัติ
+        if (!isEdit) {
+          setForm((f) => ({ ...f, employee_code: getNextCode(list) }));
+          setLoading(false);
+          return;
+        }
+
+        // โหมดแก้ไข: โหลดข้อมูลเดิม
         const emp = (Array.isArray(list) ? list : []).find((e) => String(e.id) === String(id));
         if (!emp) throw new Error('ไม่พบฟรีแลนซ์ที่ต้องการแก้ไข');
         setOriginal(emp);
@@ -249,10 +285,11 @@ export default function FreelanceForm() {
                 <input
                   id="employee_code"
                   required
+                  readOnly
                   value={form.employee_code}
                   onChange={set('employee_code')}
-                  placeholder="FR008"
-                  className={inputClass}
+                  placeholder="FR001"
+                  className={`${inputClass} bg-slate-50 text-slate-500 cursor-not-allowed`}
                 />
               </Field>
 

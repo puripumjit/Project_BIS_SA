@@ -40,6 +40,23 @@ const EMPTY_FORM = {
 const inputClass =
   'w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500';
 
+// หารหัสถัดไป เช่น มี EMP001..EMP010 -> EMP011 (นับรวมพนักงานทุกประเภท)
+const CODE_PREFIX = 'EMP';
+
+const getNextEmployeeCode = (list) => {
+  let max = 0;
+  let width = 3;
+  const re = new RegExp(`^${CODE_PREFIX}(\\d+)$`, 'i');
+  list.forEach((e) => {
+    const m = re.exec((e.employee_code || '').trim());
+    if (m) {
+      max = Math.max(max, Number(m[1]));
+      width = Math.max(width, m[1].length);
+    }
+  });
+  return `${CODE_PREFIX}${String(max + 1).padStart(width, '0')}`;
+};
+
 // อยู่นอก component เพื่อไม่ให้ช่องกรอกถูกสร้างใหม่ทุกครั้งที่พิมพ์
 function Field({ label, required, children, htmlFor, className = '' }) {
   return (
@@ -66,7 +83,7 @@ export default function EmployeeForm() {
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  // โหลดข้อมูลพนักงานทั้งหมด: ใช้สร้างรายการตำแหน่ง และ (โหมดแก้ไข) ใส่ข้อมูลลงฟอร์ม
+  // โหลดข้อมูลพนักงานทั้งหมด: ใช้สร้างรายการตำแหน่ง, รันรหัสถัดไป และ (โหมดแก้ไข) ใส่ข้อมูลลงฟอร์ม
   useEffect(() => {
     setLoading(true);
     fetch(`${API_URL}/employees`)
@@ -108,6 +125,9 @@ export default function EmployeeForm() {
             bank_name: emp.bank_name || 'กสิกรไทย',
             bank_account_no: emp.bank_account_no || '',
           });
+        } else {
+          // โหมดเพิ่ม: รันรหัสพนักงานถัดไปให้อัตโนมัติ
+          setForm((f) => ({ ...f, employee_code: getNextEmployeeCode(list) }));
         }
         setLoading(false);
       })
@@ -212,9 +232,13 @@ export default function EmployeeForm() {
                 required
                 value={form.employee_code}
                 onChange={set('employee_code')}
+                readOnly={!isEdit}
                 placeholder="EMP011"
-                className={inputClass}
+                className={`${inputClass} ${!isEdit ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`}
               />
+              {!isEdit && (
+                <p className="text-[11px] text-slate-400 mt-1">ระบบรันรหัสให้อัตโนมัติ</p>
+              )}
             </Field>
 
             <Field label="ตำแหน่ง" required htmlFor="position">
@@ -423,4 +447,3 @@ export default function EmployeeForm() {
     </div>
   );
 }
-    

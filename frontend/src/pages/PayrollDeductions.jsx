@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { API_URL } from '../config';
+import { MinusCircle } from 'lucide-react';
 
 const TYPE_LABELS = {
   LOAN: 'เงินกู้',
   PROVIDENT_FUND: 'กองทุนสำรองเลี้ยงชีพ',
-  UNIFORM: 'หักค่าชุด/ค่าใช้จ่าย',
+  UNIFORM: 'หักค่าชุด/ค่าใช้จ่าย',  
   DAMAGE: 'หักค่าเสียหาย',
   OTHER: 'อื่น ๆ',
 };
@@ -82,19 +83,19 @@ function DeductionModal({ employees, periods, defaultPeriod, editing, onClose, o
   const [form, setForm] = useState(() =>
     isEdit
       ? {
-          employee_id: String(editing.employee_id ?? ''),
-          deduction_type: editing.deduction_type || 'LOAN',
-          amount: String(editing.amount ?? ''),
-          note: editing.note || '',
-          period: editing.period || defaultPeriod,
-        }
+        employee_id: String(editing.employee_id ?? ''),
+        deduction_type: editing.deduction_type || 'LOAN',
+        amount: String(editing.amount ?? ''),
+        note: editing.note || '',
+        period: editing.period || defaultPeriod,
+      }
       : {
-          employee_id: '',
-          deduction_type: 'LOAN',
-          amount: '',
-          note: '',
-          period: defaultPeriod,
-        }
+        employee_id: '',
+        deduction_type: 'LOAN',
+        amount: '',
+        note: '',
+        period: defaultPeriod,
+      }
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -322,9 +323,16 @@ export default function PayrollDeductions() {
   return (
     <div className="w-full text-slate-800 space-y-6">
       {/* หัวข้อหน้า */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">รายการหักอื่น ๆ</h1>
-        <p className="text-xs text-slate-500 mt-1">จัดการรายการหักค่าต่าง ๆ นอกเหนือจากภาษีและประกันสังคม</p>
+      <div className="flex items-center gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+          <MinusCircle className="w-7 h-7" strokeWidth={1.8} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">รายการหักอื่น ๆ</h1>
+          <p className="text-sm text-slate-600">
+            จัดการรายการหักค่าต่าง ๆ นอกเหนือจากภาษีและประกันสังคม
+          </p>
+        </div>
       </div>
 
       {/* แถบตัวกรองและปุ่ม + เพิ่มรายการหัก */}

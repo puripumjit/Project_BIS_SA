@@ -23,6 +23,26 @@ const payDateLabel = (period) => {
   return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`;
 };
 
+// สไตล์ตอนพิมพ์/บันทึกเป็น PDF: แสดงเฉพาะสลิป ซ่อนเมนู/ปุ่มอื่นทั้งหมด
+const PRINT_CSS = `
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body * { visibility: hidden !important; }
+  #payroll-slip, #payroll-slip * { visibility: visible !important; }
+  #payroll-slip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  html, body { background: #fff !important; }
+  #payroll-slip * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+`;
+
 const Info = ({ label, value }) => (
   <div className="flex gap-3 text-sm py-1">
     <span className="w-28 shrink-0 text-slate-500">{label}</span>
@@ -102,6 +122,19 @@ export default function PayrollSlip() {
       });
   }, [id]);
 
+  // ส่งออกเป็น PDF: เปิดหน้าต่างพิมพ์ แล้วเลือก "บันทึกเป็น PDF"
+  // ตั้งชื่อเอกสารชั่วคราวเพื่อให้ชื่อไฟล์ PDF ที่บันทึกมีความหมาย
+  const handleExportPdf = () => {
+    const prevTitle = document.title;
+    document.title = `สลิปเงินเดือน_${slip.employee_code || slip.employee_id}_${slip.period}`;
+    const restore = () => {
+      document.title = prevTitle;
+      window.removeEventListener('afterprint', restore);
+    };
+    window.addEventListener('afterprint', restore);
+    window.print();
+  };
+
   if (loading) return <div className="py-10 text-center text-slate-400">กำลังโหลดข้อมูล...</div>;
   if (error)
     return (
@@ -146,7 +179,9 @@ export default function PayrollSlip() {
 
   return (
     <div className="w-full max-w-4xl mx-auto text-slate-800">
-      <div className="mb-4">
+      <style>{PRINT_CSS}</style>
+
+      <div className="mb-4 flex items-center justify-between">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -154,9 +189,20 @@ export default function PayrollSlip() {
         >
           ← กลับ
         </button>
+
+        <button
+          type="button"
+          onClick={handleExportPdf}
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-[#3B82F6] hover:bg-blue-600 text-white shadow-sm transition-all active:scale-95"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v11m0 0l-4-4m4 4l4-4M4 20h16" />
+          </svg>
+          ส่งออก PDF
+        </button>
       </div>
 
-      <div className="space-y-4">
+      <div id="payroll-slip" className="space-y-4">
         {/* หัวสลิป */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex justify-between items-center">
           <div>

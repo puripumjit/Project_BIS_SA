@@ -363,7 +363,7 @@ export default function Attendance() {
           <ClipboardCheck className="w-9 h-9" strokeWidth={1.6} />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-[#1E3A8A]">บันทึกการเข้าทำงาน</h1>
+          <h1 className="text-2xl font-bold text-[#00000]">บันทึกการเข้าทำงาน</h1>
           <p className="text-sm text-slate-500">
             ดูเวลาเข้า-ออกงาน ชั่วโมงทำงาน และ OT ของพนักงานประจำวัน ประจำเดือน{toThaiMonth(`${selectedMonth}-01`)}
           </p>

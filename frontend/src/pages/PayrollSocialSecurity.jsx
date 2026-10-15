@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL } from '../config';
+import { ShieldCheck } from 'lucide-react';
 
 const PAGE_SIZE = 10;
 const LAW_URL = 'https://www.sso.go.th';
@@ -96,10 +97,20 @@ export default function PayrollSocialSecurity() {
 
   return (
     <div className="w-full text-slate-800">
-      <h1 className="text-xl font-bold text-[#000000] mb-4">ข้อมูลประกันสังคม</h1>
+      <div className="flex items-center gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+          <ShieldCheck className="w-7 h-7" strokeWidth={1.8} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">ประกันสังคม</h1>
+          <p className="text-sm text-slate-600">
+            จัดการข้อมูลประกันสังคม ตรวจสอบเงินสมทบของพนักงานและนายจ้างในแต่ละงวด
+          </p>
+        </div>
+      </div>
 
       {/* การ์ดสรุป */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 m-5">
         <StatCard icon={<PeopleIcon />} label="พนักงานทั้งหมด" value={data.items.length} unit="คน" />
         <StatCard
           icon={<MoneyIcon />}
