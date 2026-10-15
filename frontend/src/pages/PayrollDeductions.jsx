@@ -46,17 +46,18 @@ const readError = async (res, fallback) => {
 };
 
 const fieldCls =
-  'w-full bg-white border border-slate-200 text-slate-700 py-2.5 px-3.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium shadow-sm';
+  'w-full bg-white border border-slate-200 text-slate-700 py-2.5 px-3.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium shadow-sm disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed';
 
-function SelectField({ label, value, onChange, children }) {
+function SelectField({ label, value, onChange, disabled = false, children }) {
   return (
     <div>
       <label className="block text-xs font-bold text-slate-700 mb-1.5">{label}</label>
       <div className="relative">
         <select
           value={value}
+          disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
-          className={`${fieldCls} pr-8 appearance-none cursor-pointer`}
+          className={`${fieldCls} pr-8 appearance-none ${disabled ? '' : 'cursor-pointer'}`}
         >
           {children}
         </select>
@@ -70,24 +71,46 @@ function SelectField({ label, value, onChange, children }) {
   );
 }
 
-function AddDeductionModal({ employees, periods, defaultPeriod, onClose, onSaved }) {
-  const [form, setForm] = useState({
-    employee_id: '',
-    deduction_type: 'LOAN',
-    amount: '',
-    note: '',
-    period: defaultPeriod,
-  });
+/**
+ * Modal เพิ่ม / แก้ไขรายการหัก
+ * - ไม่ส่ง `editing` = โหมดเพิ่ม (POST /payroll-deductions)
+ * - ส่ง `editing` (แถวจากตาราง) = โหมดแก้ไข (PUT /payroll-deductions/:id)
+ */
+function DeductionModal({ employees, periods, defaultPeriod, editing, onClose, onSaved }) {
+  const isEdit = Boolean(editing);
+
+  const [form, setForm] = useState(() =>
+    isEdit
+      ? {
+          employee_id: String(editing.employee_id ?? ''),
+          deduction_type: editing.deduction_type || 'LOAN',
+          amount: String(editing.amount ?? ''),
+          note: editing.note || '',
+          period: editing.period || defaultPeriod,
+        }
+      : {
+          employee_id: '',
+          deduction_type: 'LOAN',
+          amount: '',
+          note: '',
+          period: defaultPeriod,
+        }
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  // แสดงเฉพาะพนักงานที่ยังทำงานอยู่ (ถ้า API ไม่ส่ง status มา จะแสดงทุกคน)
-  const activeEmployees = useMemo(
-    () => employees.filter((e) => !e.status || e.status === 'ACTIVE'),
-    [employees]
+  // โหมดเพิ่ม: แสดงเฉพาะพนักงานที่ยังทำงานอยู่ (ถ้า API ไม่ส่ง status มา จะแสดงทุกคน)
+  // โหมดแก้ไข: ล็อกพนักงานไว้ จึงใช้ทุกคนเพื่อให้ชื่อเดิมแสดงได้เสมอ
+  const employeeOptions = useMemo(
+    () => (isEdit ? employees : employees.filter((e) => !e.status || e.status === 'ACTIVE')),
+    [employees, isEdit]
   );
+
+  // กันกรณีรายชื่อพนักงานยังไม่โหลด/ไม่พบ ให้ยังเห็นชื่อจากแถวที่แก้ไข
+  const missingCurrent =
+    isEdit && !employeeOptions.some((e) => String(e.id) === String(form.employee_id));
 
   const handleSubmit = async () => {
     if (!form.employee_id) return setError('กรุณาเลือกพนักงาน');
@@ -96,8 +119,12 @@ function AddDeductionModal({ employees, periods, defaultPeriod, onClose, onSaved
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/payroll-deductions`, {
-        method: 'POST',
+      const url = isEdit
+        ? `${API_URL}/payroll-deductions/${editing.id}`
+        : `${API_URL}/payroll-deductions`;
+
+      const res = await fetch(url, {
+        method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           employee_id: Number(form.employee_id),
@@ -110,7 +137,7 @@ function AddDeductionModal({ employees, periods, defaultPeriod, onClose, onSaved
       if (!res.ok) throw new Error(await readError(res, 'บันทึกไม่สำเร็จ'));
       onSaved(form.period);
     } catch (err) {
-      console.error('Add Deduction Error:', err);
+      console.error(isEdit ? 'Edit Deduction Error:' : 'Add Deduction Error:', err);
       setError(err.message);
       setSaving(false);
     }
@@ -119,7 +146,9 @@ function AddDeductionModal({ employees, periods, defaultPeriod, onClose, onSaved
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6">
-        <h2 className="text-base font-bold text-slate-900 mb-4">เพิ่มรายการหัก</h2>
+        <h2 className="text-base font-bold text-slate-900 mb-4">
+          {isEdit ? 'แก้ไขรายการหัก' : 'เพิ่มรายการหัก'}
+        </h2>
 
         {error && (
           <div className="mb-3 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs">
@@ -131,10 +160,16 @@ function AddDeductionModal({ employees, periods, defaultPeriod, onClose, onSaved
           <SelectField
             label="พนักงาน"
             value={form.employee_id}
+            disabled={isEdit}
             onChange={(v) => setForm((f) => ({ ...f, employee_id: v }))}
           >
             <option value="">เลือกพนักงาน</option>
-            {activeEmployees.map((e) => (
+            {missingCurrent && (
+              <option value={form.employee_id}>
+                {editing.employee_code} - {empName(editing)}
+              </option>
+            )}
+            {employeeOptions.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.employee_code} - {empName(e)}
               </option>
@@ -163,6 +198,10 @@ function AddDeductionModal({ employees, periods, defaultPeriod, onClose, onSaved
               value={form.period}
               onChange={(v) => setForm((f) => ({ ...f, period: v }))}
             >
+              {/* กรณีแก้ไขรายการที่เป็นรอบเก่ากว่า 12 เดือน */}
+              {!periods.some((p) => p.value === form.period) && (
+                <option value={form.period}>{periodLabel(form.period)}</option>
+              )}
               {periods.map((p) => (
                 <option key={p.value} value={p.value}>
                   {p.label}
@@ -212,8 +251,9 @@ export default function PayrollDeductions() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingRow, setEditingRow] = useState(null); // แถวที่กำลังแก้ไข
 
-  // รายชื่อพนักงาน (ใช้ใน dropdown ของฟอร์มเพิ่ม และสร้างตัวเลือกแผนก)
+  // รายชื่อพนักงาน (ใช้ใน dropdown ของฟอร์ม และสร้างตัวเลือกแผนก)
   useEffect(() => {
     fetch(`${API_URL}/employees`)
       .then(async (res) => {
@@ -268,8 +308,10 @@ export default function PayrollDeductions() {
 
   const totalAmount = useMemo(() => filtered.reduce((sum, r) => sum + Number(r.amount || 0), 0), [filtered]);
 
+  // ใช้ร่วมกันทั้งตอนเพิ่มและแก้ไข
   const handleSaved = (savedPeriod) => {
     setShowAdd(false);
+    setEditingRow(null);
     if (savedPeriod === period) {
       load(period);
     } else {
@@ -380,18 +422,19 @@ export default function PayrollDeductions() {
                   <th className="py-3.5 px-4 text-center">ประเภทการหัก</th>
                   <th className="py-3.5 px-4 text-center">จำนวนเงิน</th>
                   <th className="py-3.5 px-4 text-center">หมายเหตุ</th>
+                  <th className="py-3.5 px-4 text-center">จัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-slate-400">
+                    <td colSpan={7} className="py-10 text-center text-slate-400">
                       กำลังโหลดข้อมูล...
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-slate-400">
+                    <td colSpan={7} className="py-10 text-center text-slate-400">
                       ไม่มีรายการหักในรอบนี้ กด &quot;เพิ่มรายการหัก&quot; เพื่อเริ่มต้น
                     </td>
                   </tr>
@@ -406,6 +449,19 @@ export default function PayrollDeductions() {
                       </td>
                       <td className="py-3.5 px-4 text-center font-bold text-slate-800">{fmt(row.amount)}</td>
                       <td className="py-3.5 px-4 text-center text-slate-500">{row.note || '-'}</td>
+                      <td className="py-3.5 px-4 text-center">
+                        <button
+                          type="button"
+                          title="แก้ไข"
+                          aria-label="แก้ไขรายการหัก"
+                          onClick={() => setEditingRow(row)}
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                        >
+                          <svg className="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -424,17 +480,23 @@ export default function PayrollDeductions() {
           <p className="font-bold">หมายเหตุ</p>
           <ul className="list-disc list-inside space-y-0.5 text-blue-800">
             <li>สามารถเพิ่มรายการหักได้ที่ปุ่ม &quot;เพิ่มรายการหัก&quot;</li>
+            <li>สามารถแก้ไขรายการได้ที่ไอคอนดินสอในคอลัมน์ &quot;จัดการ&quot;</li>
             <li>รายการหักบางประเภทสามารถตั้งค่าเป็นเงินตัดอัตโนมัติได้ที่เมนู ตั้งค่าระบบ</li>
           </ul>
         </div>
       </div>
 
-      {showAdd && (
-        <AddDeductionModal
+      {(showAdd || editingRow) && (
+        <DeductionModal
+          key={editingRow ? `edit-${editingRow.id}` : 'add'}
           employees={employees}
           periods={periods}
           defaultPeriod={period}
-          onClose={() => setShowAdd(false)}
+          editing={editingRow}
+          onClose={() => {
+            setShowAdd(false);
+            setEditingRow(null);
+          }}
           onSaved={handleSaved}
         />
       )}

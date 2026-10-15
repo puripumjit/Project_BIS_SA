@@ -82,7 +82,7 @@ func validStatus(s string) bool {
 func payrollIDFromPath(path string) (int, bool) {
 	parts := strings.Split(strings.Trim(path, "/"), "/")
 	for i, p := range parts {
-		if p == "payroll" && i+1 < len(parts) {
+		  if (p == "payroll" || p == "payrolltax") && i+1 < len(parts) {
 			id, err := strconv.Atoi(parts[i+1])
 			return id, err == nil && id > 0
 		}

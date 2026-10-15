@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import Sidebar from './components/sidebar';
 import Header from './components/header';
 import Login from './pages/login';
-import Homepage from './pages/Homepage';
+import Home from './pages/Home.jsx';
 import PermanentEmployee from './pages/PermanentEmployee';
 import EmployeeForm from './pages/EmployeeForm';
 import EmployeeDelete from './pages/EmployeeDelete';
@@ -13,6 +13,7 @@ import FreelanceDelete from './pages/FreelanceDelete';
 import Attendance from './pages/Attendance';
 import Leaves from './pages/Leaves';
 import PayrollCalculate from './pages/PayrollCalculate';
+import PayrollSlip from './pages/PayrollSlip';
 import PayrollTax from './pages/PayrollTax';
 import PayrollTaxEdit from './pages/PayrollTaxEdit';  
 import PayrollSocialSecurity from './pages/PayrollSocialSecurity';
@@ -64,7 +65,7 @@ export default function App() {
 
         {/* หน้าหลักภายในระบบ */}
         <Route path="/" element={<MainLayout />}>
-          <Route index element={<Homepage />} />
+          <Route path="/" element={<Home />} />
 
           {/* พนักงานประจำ: รายการ / เพิ่ม / แก้ไข / ลบ */}
           <Route path="employees/permanent" element={<PermanentEmployee />} />
@@ -84,6 +85,7 @@ export default function App() {
           <Route path="leaves" element={<Leaves />} />
           <Route path="payroll/calculate" element={<PayrollCalculate />} />
           <Route path="/payroll/calculate/:id" element={<PayrollDetail />} />
+          <Route path="/payroll/slip/:id" element={<PayrollSlip />} />
           <Route path="payroll/tax" element={<PayrollTax />} />  
           <Route path="/payroll/tax/:id/edit" element={<PayrollTaxEdit />} />
           <Route path="/payroll/social-security" element={<PayrollSocialSecurity />} />

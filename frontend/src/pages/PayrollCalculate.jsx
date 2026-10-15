@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { API_URL } from '../config';
 
 const DETAIL_PATH = '/payroll/calculate';
+const SLIP_PATH = '/payroll/slip';
 const PAGE_SIZE = 10;
 
 const THAI_MONTHS = [
@@ -130,7 +131,7 @@ export default function PayrollCalculate() {
 
   return (
     <div className="w-full text-slate-800">
-      <h1 className="text-xl font-bold text-[#1E3A8A] mb-4">การคำนวณเงินเดือน</h1>
+      <h1 className="text-xl font-bold text-[#000000] mb-4">การคำนวณเงินเดือน</h1>
 
       {/* ตัวกรอง */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-5">
@@ -244,13 +245,20 @@ export default function PayrollCalculate() {
                     <td className="py-3 px-3 text-right">{fmt(item.tax_amount)}</td>
                     <td className="py-3 px-3 text-right">{fmt(item.social_security)}</td>
                     <td className="py-3 px-3 text-right">{fmt(item.other_deduction + item.extra_deduction)}</td>
-                    <td className="py-3 px-3 text-center">
+                    <td className="py-3 px-3 text-center whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => navigate(`${DETAIL_PATH}/${item.id}`)}
                         className="text-[#1E3A8A] font-bold underline hover:text-blue-700"
                       >
                         ดูรายละเอียด
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`${SLIP_PATH}/${item.id}`)}
+                        className="ml-3 text-emerald-700 font-bold underline hover:text-emerald-600"
+                      >
+                        ดูสลิป
                       </button>
                     </td>
                   </tr>

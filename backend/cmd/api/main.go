@@ -149,6 +149,8 @@ func withCORS(next http.Handler) http.Handler {
 	allowed := map[string]bool{
 		"http://127.0.0.1:5173": true,
 		"http://localhost:5173": true,
+		"http://127.0.0.1:5174": true,
+		"http://localhost:5174": true,
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

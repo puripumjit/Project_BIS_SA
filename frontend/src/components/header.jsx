@@ -19,7 +19,7 @@ export default function Header() {
   ];
 
   // สเตทสำหรับเดือนที่เลือก (ค่าเริ่มต้น: ตุลาคม 2569 ตามแบบ[cite: 1])
-  const [selectedPeriod, setSelectedPeriod] = useState('ตุลาคม 2569');
+  const [selectedPeriod, setSelectedPeriod] = useState('กันยายน 2569');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   return (

@@ -96,7 +96,7 @@ export default function PayrollSocialSecurity() {
 
   return (
     <div className="w-full text-slate-800">
-      <h1 className="text-xl font-bold text-[#1E3A8A] mb-4">ข้อมูลประกันสังคม</h1>
+      <h1 className="text-xl font-bold text-[#000000] mb-4">ข้อมูลประกันสังคม</h1>
 
       {/* การ์ดสรุป */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
